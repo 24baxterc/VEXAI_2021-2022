@@ -16,28 +16,50 @@ def initialize_config(pipeline, device_number):
         config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
     return config
 
-def switch_cameras(pipeline, oconfig, camera, target_camera=''):
-    pipeline.stop()
-    try:
-        if not target_camera == '':
-           config = initialize_config(pipeline, target_camera)
-           pipeline.start(config)
-           return camera
-        if camera == 'd435':
-            camera = 'l515'
-            config = initialize_config(pipeline, 'f1181409')
-            pipeline.start(config)
-            return 'l515'
-        elif camera == 'l515':
-            config = initialize_config(pipeline, '048522072643')
-            pipeline.start(config)
-            return 'd435'
-    except:
-        pipeline.start(oconfig)
-        return -1
-
 def start_camera(device_number):
     pipeline = rs.pipeline()
     config = initialize_config(pipeline, device_number)
     pipeline.start(config)
-    return [pipeline, config]
+    return (pipeline, config)
+
+class CameraSwitcher:
+    def __init__(self, ids):
+        self.pipeline = rs.pipeline()
+        self.config = rs.config()
+        if len(ids) < 1:
+            raise Exception("Array \"ids\" must include at least 1 id. 0 were provided.")
+        self.ids = ids
+
+    def start(self, camera_id=''):
+        if camera_id == '':
+            camera_id = self.ids[0]
+        if not camera_id in self.ids:
+            raise Exception("Camera ID provided does not exist in array \"ids\".")
+        self.pipeline, self.config = start_camera(camera_id)
+        self.active_id = camera_id
+
+    def switch_camera(self, target_camera=''):
+        oconfig = self.config
+        self.pipeline.stop()
+        try:
+            if not target_camera == '':
+                if not target_camera in self.ids:
+                    raise Exception("Camera ID provided does not exist in array \"ids\".")
+                self.config = initialize_config(self.pipeline, target_camera)
+                self.pipeline.start(self.config)
+                self.active_id = target_camera
+            else:
+                print("SWITCHED")
+                i = self.ids.index(self.active_id)
+                if i == (len(self.ids) - 1): 
+                    i = 0
+                else:
+                    i+=1
+                self.config = initialize_config(self.pipeline, self.ids[i])
+                self.pipeline.start(self.config)
+                self.active_id = self.ids[i]
+        except Exception as e:
+            print(e)
+            self.pipeline.start(oconfig)
+            return -1
+

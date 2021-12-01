@@ -9,6 +9,7 @@ from utils.general import non_max_suppression, scale_coords
 from utils.plots import Annotator, colors
 from utils.serial_test import Coms
 from utils.data import return_data, determine_color, determine_depth, degree
+from utils.camera import CameraSwitcher
 import time
 import os
 
@@ -27,26 +28,8 @@ device = torch.device("cuda" if torch.cuda.is_available() else 'cpu')
 model.to(device)
 names = model.module.names if hasattr(model, 'module') else model.names
 
-camera = 'd435'
-# Configure depth and color streams
-pipeline = rs.pipeline()
-config = rs.config()
-
-# Get device product line for setting a supporting resolution
-pipeline_wrapper = rs.pipeline_wrapper(pipeline)
-pipeline_profile = config.resolve(pipeline_wrapper)
-device = pipeline_profile.get_device()
-device_product_line = str(device.get_info(rs.camera_info.product_line))
-
-config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
-
-if device_product_line == 'L500':
-    config.enable_stream(rs.stream.color, 960, 540, rs.format.bgr8, 30)
-else:
-    config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
-
-# Start streaming
-pipeline.start(config)
+camera = CameraSwitcher(['f1181409', '048522072643'])
+camera.start()
 
 comm = Coms()
 try:
@@ -59,7 +42,7 @@ try:
         start = time.time()
 
         # Wait for a coherent pair of frames: depth and color
-        frames = pipeline.wait_for_frames()
+        frames = camera.pipeline.wait_for_frames()
         depth_frame = frames.get_depth_frame()
         color_frame = frames.get_color_frame()
         if not depth_frame or not color_frame:
@@ -123,7 +106,7 @@ try:
             comm.send("mogo", data)
             if (comm.read("stop")): 
                 print("Awaiting \"continue\" signal")
-                camera = switch_cameras(pipeline, config, camera)
+                camera.switch_camera()
                 while (not comm.read("continue")): 
                     pass
         except:
@@ -132,16 +115,16 @@ try:
             except Exception as e:
                 print(e)
 
-    if args.display:
-        color_image = color_annotator.result()
-        depth_colormap = depth_annotator.result()    
-        images = np.hstack((color_image, depth_colormap))
-        cv2.namedWindow('RealSense', cv2.WINDOW_AUTOSIZE)
-        cv2.imshow('RealSense', images)
+        if args.display:
+            color_image = color_annotator.result()
+            depth_colormap = depth_annotator.result()    
+            images = np.hstack((color_image, depth_colormap))
+            cv2.namedWindow('RealSense', cv2.WINDOW_AUTOSIZE)
+            cv2.imshow('RealSense', images)
 
-    print("Time elapsed: {}".format(time.time() - start))
-    cv2.waitKey(1)
+        print("Time elapsed: {}".format(time.time() - start))
+        cv2.waitKey(1)
 
 finally:
-    pipeline.stop()
+    camera.pipeline.stop()
 
