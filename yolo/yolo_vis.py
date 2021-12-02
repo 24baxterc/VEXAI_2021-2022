@@ -39,6 +39,9 @@ except:
 
 try:
     while True:
+        start = time.time()
+
+        # Wait for a coherent pair of frames: depth and color
         frames = camera.pipeline.wait_for_frames()
         depth_frame = frames.get_depth_frame()
         color_frame = frames.get_color_frame()
@@ -49,16 +52,30 @@ try:
         depth_image = np.asanyarray(depth_frame.get_data())
         color_image = np.asanyarray(color_frame.get_data())
 
-        # If depth and color resolutions are different, resize color image to match depth image for display
-        if depth_image.shape != color_image.shape:
-            color_image = cv2.resize(color_image, dsize=(depth_image.shape[1], depth_image.shape[0]), interpolation=cv2.INTER_AREA)
+        # Apply colormap on depth image (image must be converted to 8-bit per pixel first)
+        depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depth_image, alpha=0.03), cv2.COLORMAP_JET)
 
-        color_image_t = torch.moveaxis(torch.cuda.FloatTensor(color_image), 2, 0)[None] / 255.0
+        depth_colormap_dim = depth_image.shape
+        color_colormap_dim = color_image.shape
+        # If depth and color resolutions are different, resize color image to match depth image for display
+        if depth_colormap_dim != color_colormap_dim:
+            color_image = cv2.resize(color_image, dsize=(depth_colormap_dim[1], depth_colormap_dim[0]), interpolation=cv2.INTER_AREA)
+
+        color_image_t = torch.cuda.FloatTensor(color_image)
+        color_image_t = torch.moveaxis(color_image_t, 2, 0)[None] / 255.0
 
         pred = model(color_image_t)[0]
-        pred = non_max_suppression(pred, .5)[0]
+
+        conf_thres = .3
+        pred = non_max_suppression(pred, conf_thres)
+
+        color_image0, depth_colormap0 = color_image, depth_colormap
+        pred = pred[0]
         
-        pred[:,:4] = scale_coords(color_image_t.shape[2:], pred[:, :4], color_image.shape).round()
+        # tensor([[det1],[det2]])
+        color_annotator = Annotator(color_image0, line_width=2, pil=not ascii)
+        depth_annotator = Annotator(depth_colormap0, line_width=2, pil=not ascii)
+        pred[:,:4] = scale_coords(color_image_t.shape[2:], pred[:, :4], color_image0.shape).round()
 
         for i, det in enumerate(pred):
             if(det[5] == 0): # COLOR
@@ -67,11 +84,15 @@ try:
                 pred[i, 5] = 3
             pred[i, 4] = determine_depth(det, depth_image) * depth_frame.get_units()
 
+        names = ["red-mogo","yellow-mogo", "blue-mogo", "unknown_color", "ring"]
+
+        data = [0, 0]
         if int(pred.shape[0]) > 0:
             det = return_data(pred, find="close", colors=[-1, 0, 1])
 
-            data = [-1,-1]
             if len(det) > 0:
+                color_annotator.box_label(det[:4], f'{names[int(det[5]) + 1]} {det[4]:.2f}', color=colors(det[5], True))
+                depth_annotator.box_label(det[:4], f'{names[int(det[5]) + 1]} {det[4]:.2f}', color=colors(det[5], True))
                 turn_angle = degree(det)
                 if not turn_angle == None:
                     data = [float(det[4]), float(turn_angle)]
@@ -80,6 +101,7 @@ try:
             print("Depth: {}, Turn angle: {}".format(data[0], data[1]))
             comm.send("mogo", data)
             if (comm.read("stop")): 
+                print("Awaiting \"continue\" signal")
                 camera.switch_camera()
                 while (not comm.read("continue")): 
                     pass
@@ -87,7 +109,15 @@ try:
             try:
                 comm.open()
             except Exception as e:
-                print(e)
+                # print(e)
+                pass
+        color_image = color_annotator.result()
+        depth_colormap = depth_annotator.result()    
+        images = np.hstack((color_image, depth_colormap))
+        cv2.namedWindow('RealSense', cv2.WINDOW_AUTOSIZE)
+        cv2.imshow('RealSense', images)
+
+        print("Time elapsed: {}".format(time.time() - start))
         cv2.waitKey(1)
 
 finally:
