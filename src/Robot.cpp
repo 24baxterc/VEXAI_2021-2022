@@ -52,6 +52,8 @@ double Robot::offset_back = 2.875;
 double Robot::offset_middle = 5.0;
 double pi = 3.141592653589793238;
 double Robot::wheel_circumference = 2.75 * pi;
+double inches_to_encoder = 41.669
+double meters_to_inches = 39.3701
 
 double angle_threshold = 5;
 double depth_threshold1 = 200;
@@ -66,31 +68,31 @@ void Robot::receive_mogo(nlohmann::json msg) {
     string msgS = msg.dump();
     std::size_t found = msgS.find(",");
 
-    double lidar_depth = std::stod(msgS.substr(1, found - 1));
-    double angle = std::stod(msgS.substr(found + 1, msgS.size() - found - 1));
-    double phi = IMU.get_rotation() * pi / 180; //should this be IMU.get_rotation() or heading?
+    double lidar_depth = std::stod(msgS.substr(1, found - 1)); // Gets depth to an object in meters
+    double angle = std::stod(msgS.substr(found + 1, msgS.size() - found - 1)); // Gets rotation from a mogo in degrees
+    double phi = IMU.get_rotation() * pi / 180; // Gets current rotation in radians
     double depth;
 
-    heading = (IMU.get_rotation() - angle);
+    heading = (IMU.get_rotation() - angle); // Determines target heading by using difference between current rotation and desired rotation
     bool movement_over = false;
 
-    if (abs(angle) < angle_threshold){
+    if (abs(angle) < angle_threshold){ // If the angle the mogo is at is less than 5 degrees away from the center
         do {
-            depth = dist.get();
+            depth = dist.get(); // Get depth using sensor (not the camera). Returns value in milimeteres
             double change = depth * depth_coefficient;
-            new_y = (float)new_y + change * cos(phi);
+            new_y = (float)new_y + change * cos(phi); // Moves forward a distance equivlent to (the distance the mogo is away) * (arbitary coefficient)
             new_x = (float)new_x - change * sin(phi);
-            if (depth < depth_threshold1 && !movement_over){
+            if (depth < depth_threshold1 && !movement_over){ // If we are less than 200 milimeters away from the mogo and haven't stopped, stop.
                 lib7405x::Serial::Instance()->send(lib7405x::Serial::STDOUT, "#stop#");
                 movement_over = true;
             }
             delay(5);
-            depth_coefficient = depth_coefficient2;
-        } while (depth < depth_threshold1 && depth > depth_threshold2);
+            depth_coefficient = depth_coefficient2; // Change the depth coefficient so we make smaller changes in movement after looping a single time after we recieve a mogo position.
+        } while (depth < depth_threshold1 && depth > depth_threshold2); // Loop while the depth is between .2 and .05 meters
     }
 
     if (movement_over){
-        new_y = (float)y;
+        new_y = (float)y; // Stop moving
         new_x = (float)x;
         lcd::print(7, "MOGO REACHED");
     }
@@ -148,28 +150,28 @@ void Robot::drive(void *ptr) {
 
 void Robot::mecanum(int power, int strafe, int turn) {
 
- int powers[] {
-     power + strafe + turn,
-     power - strafe - turn,
-     power - strafe + turn, 
-     power + strafe - turn
- };
+    int powers[] {
+        power + strafe + turn,
+        power - strafe - turn,
+        power - strafe + turn, 
+        power + strafe - turn
+    };
 
- int max = *max_element(powers, powers + 4);
- int min = abs(*min_element(powers, powers + 4));
+    int max = *max_element(powers, powers + 4); // Finds highest power
+    int min = abs(*min_element(powers, powers + 4)); // Finds lowest power
 
- double true_max = double(std::max(max, min));
- double scalar = (true_max > 127) ? 127 / true_max : 1;
+    double true_max = double(std::max(max, min)); // Finds highest magnitude of power
+    double scalar = (true_max > 127) ? 127 / true_max : 1; // Scales all motor powers down if there is a motor power higher than the max power
     
- FLT = 0*(power + strafe + turn) * scalar;
- FLB = 0*(power + strafe + turn) * scalar;
+    FLT = 0*(power + strafe + turn) * scalar; // But why
+    FLB = 0*(power + strafe + turn) * scalar; // But why
 
- FRT = (power - strafe - turn) * scalar;
- FRB = (power - strafe - turn) * scalar;
- BLT = (power - strafe + turn) * scalar;
- BLB = (power - strafe + turn) * scalar;
- BRT = (power + strafe - turn) * scalar;
- BRB = (power + strafe - turn) * scalar;
+    FRT = (power - strafe - turn) * scalar;
+    FRB = (power - strafe - turn) * scalar;
+    BLT = (power - strafe + turn) * scalar;
+    BLB = (power - strafe + turn) * scalar;
+    BRT = (power + strafe - turn) * scalar;
+    BRB = (power + strafe - turn) * scalar;
 }
 
 
@@ -264,18 +266,17 @@ void Robot::move_to(void *ptr)
 {
     while (true)
     { 
+        double imu_error = -(IMU.get_rotation() - heading); // -(IMU - (IMU - angle)) = -angle    See line 76.
+        double y_error = new_y - y; // Change in y
+        double x_error = -(new_x - x); // Change in x
 
-        double imu_error = -(IMU.get_rotation() - heading);
-        double y_error = new_y - y;
-        double x_error = -(new_x - x);
+        double phi = (IMU.get_rotation()) * pi / 180; // Get current rotation in radians
+        double power = power_PD.get_value(y_error * std::cos(phi) + x_error * std::sin(phi)); // PD Madness to find forward value
+        double strafe = strafe_PD.get_value(x_error * std::cos(phi) - y_error * std::sin(phi)); // PD Madness to find sideways value
+        double turn = turn_PD.get_value(imu_error); // PD Madness to find turn value
+        turn = (abs(turn) < 15) ? turn : abs(turn)/turn * 15; // Clamps the turn between -15 and 15 degrees
 
-        double phi = (IMU.get_rotation()) * pi / 180;
-        double power = power_PD.get_value(y_error * std::cos(phi) + x_error * std::sin(phi));
-        double strafe = strafe_PD.get_value(x_error * std::cos(phi) - y_error * std::sin(phi));
-        double turn = turn_PD.get_value(imu_error);
-        turn = (abs(turn) < 15) ? turn : abs(turn)/turn * 15;
-
-        mecanum(power, strafe, turn);
+        mecanum(power, strafe, turn); // Drive to the point
 
         delay(5);
     }
