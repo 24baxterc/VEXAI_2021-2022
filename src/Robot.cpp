@@ -23,7 +23,7 @@ Motor Robot::FR(17, true);
 Motor Robot::FL(8);
 Motor Robot::BR(3, true);
 Motor Robot::BL(10);
-Motor Robot::angler(17);
+Motor Robot::angler(15);
 Motor Robot::conveyor(18);
 
 Imu Robot::IMU(15);
@@ -227,7 +227,7 @@ void Robot::move_to(void *ptr)
         turn = (abs(turn) < 15) ? turn : abs(turn)/turn * 15;
 
         mecanum(power, strafe, turn);
-
+    
         delay(5);
     }
 }
