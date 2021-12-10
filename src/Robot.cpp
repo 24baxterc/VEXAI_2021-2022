@@ -73,6 +73,13 @@ void Robot::receive(nlohmann::json msg) {
         new_y = ((y+lidar_depth*sin((angle/180)*pi))*meters_to_inches)*inches_to_encoder;
         new_x = ((x+lidar_depth*cos((angle/180)*pi))*meters_to_inches)*inches_to_encoder;
         fff = false;
+        /* 
+        * When within a certain distance of mogo, switch from lidar to other sensor
+        * Var storing where depth is reading in from
+        * Assert distance >12
+        * update new_x and new_y for every new frame (i.e. constantly update angle+depth to ensure more accuracy)
+        * threshold for turning angle
+        */
     }    
 
 }
@@ -115,7 +122,7 @@ void Robot::drive(void *ptr) {
 }
 
 void Robot::mecanum(int power, int strafe, int turn) {
-
+//take in a max power (?)
     int powers[] {
         power + strafe + turn,
         power - strafe - turn,
@@ -225,9 +232,7 @@ void Robot::move_to(void *ptr)
         double strafe = strafe_PD.get_value(x_error * std::cos(phi) - y_error * std::sin(phi));
         double turn = turn_PD.get_value(imu_error);
         turn = (abs(turn) < 15) ? turn : abs(turn)/turn * 15;
-
-        mecanum(power, strafe, turn);
-    
+   
         delay(5);
     }
 }
