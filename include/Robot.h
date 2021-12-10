@@ -13,6 +13,7 @@ using namespace pros;
 class Robot{
 	public:
 		static Controller master;
+<<<<<<< Updated upstream
 		static Motor FLT;
 		static Motor FRT;
 		static Motor BLT;
@@ -21,6 +22,9 @@ class Robot{
 		static Motor FRB;
 		static Motor BLB;
 		static Motor BRB;
+=======
+		
+>>>>>>> Stashed changes
 		static Motor FR;
 		static Motor FL;
 		static Motor BR;
@@ -49,7 +53,11 @@ class Robot{
 		static void reset_PD();
 		static void mecanum(int power, int strafe, int turn);
 		static void drive(void *ptr);
+<<<<<<< Updated upstream
 		static void print(nlohmann::json msg);
+=======
+		static void receive(nlohmann::json msg);
+>>>>>>> Stashed changes
 
 		static void start_task(std::string name, void (*func)(void *));
 		static bool task_exists(std::string name);

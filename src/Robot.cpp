@@ -18,6 +18,7 @@ using namespace std;
 std::map<std::string, std::unique_ptr<pros::Task>> Robot::tasks;
 
 Controller Robot::master(E_CONTROLLER_MASTER);
+<<<<<<< Updated upstream
 // Motor Robot::FLT(2, true); //front left top
 // Motor Robot::FLB(1); //front left bottom
 // Motor Robot::FRT(9); //front right top
@@ -27,12 +28,20 @@ Controller Robot::master(E_CONTROLLER_MASTER);
 // Motor Robot::BLT(11); //back left top
 // Motor Robot::BLB(12, true); //back left bottom
 // Motor Robot::roller(18); //mechanism for ascending rings
+=======
+
+>>>>>>> Stashed changes
 Motor Robot::FR(17, true);
 Motor Robot::FL(8);
 Motor Robot::BR(3, true);
 Motor Robot::BL(10);
 
+<<<<<<< Updated upstream
 
+=======
+Motor Robot::angler(17);
+Motor Robot::conveyor(18);
+>>>>>>> Stashed changes
 
 Imu Robot::IMU(15);
 ADIEncoder Robot::LE(5, 6);
@@ -54,6 +63,7 @@ double pi = 3.141592653589793238;
 
 int counter_global = 0;
 
+<<<<<<< Updated upstream
 void Robot::print(nlohmann::json msg) {
 	x = (float)x + 1;
     string msgS = msg.dump();
@@ -74,6 +84,29 @@ void Robot::print(nlohmann::json msg) {
     lcd::print(6, "DONE %d", mogo_y);
     move_to(pos);
 	//mec_wrapper(0, 0, turn/10);
+=======
+bool fff = true;
+void Robot::receive(nlohmann::json msg) {
+    if(fff){
+        string msgS = msg.dump();
+        std::size_t found = msgS.find(",");
+
+        double lidar_depth = std::stod(msgS.substr(1, found - 1));
+        double angle = std::stod(msgS.substr(found + 1, msgS.size() - found - 1));
+        double phi = IMU.get_rotation() * pi / 180; //should this be IMU.get_rotation() or heading?
+
+        heading = (IMU.get_rotation() - angle);
+        lcd::print(4, "Dept1h: %d", (lidar_depth * meters_to_inches));
+        lidar_depth = (lidar_depth * meters_to_inches - 12)*inches_to_encoder;
+        new_y = y + lidar_depth * cos((angle / 180) * pi);
+        new_x = x + lidar_depth * sin((angle / 180) * pi);
+        fff = false;
+        lcd::print(5, "Depth: %d", lidar_depth);
+        lcd::print(6, "Angle: %d", angle);
+    }
+    lcd::print(5, "%s", msg.dump());    
+    // fff++;
+>>>>>>> Stashed changes
 }
 
 void Robot::reset_PD() {
@@ -132,6 +165,7 @@ void Robot::drive(void *ptr) {
 // }
 void Robot::mecanum(int power, int strafe, int turn) {
 
+<<<<<<< Updated upstream
 	int powers[] {
 		power + strafe + turn,
 		power - strafe - turn,
@@ -151,6 +185,25 @@ void Robot::mecanum(int power, int strafe, int turn) {
 	FR = (power - strafe - turn) * scalar;
 	BL = (power - strafe + turn) * scalar;
 	BR = (power + strafe - turn) * scalar;
+=======
+    int powers[] {
+        power + strafe + turn,
+        power - strafe - turn,
+        power - strafe + turn, 
+        power + strafe - turn
+    };
+
+    int max = *max_element(powers, powers + 4); // Finds highest power
+    int min = abs(*min_element(powers, powers + 4)); // Finds lowest power
+
+    double true_max = double(std::max(max, min)); // Finds highest magnitude of power
+    double scalar = (true_max > 127) ? 127 / true_max : 1; // Scales all motor powers down if there is a motor power higher than the max power
+    
+    FL = (power + strafe + turn) * scalar;
+    FR = (power - strafe - turn) * scalar;
+    BL = (power - strafe + turn) * scalar;
+    BR = (power + strafe - turn) * scalar;
+>>>>>>> Stashed changes
 }
 
 
@@ -219,6 +272,7 @@ void Robot::fps(void *ptr) {
 }
 void Robot::brake(std::string mode)
 {
+<<<<<<< Updated upstream
 
 	if (mode.compare("coast") == 0)
 	{
@@ -245,12 +299,28 @@ void Robot::brake(std::string mode)
         // BLB.set_brake_mode(E_MOTOR_BRAKE_HOLD);
 		// BRT.set_brake_mode(E_MOTOR_BRAKE_HOLD);
         // BRB.set_brake_mode(E_MOTOR_BRAKE_HOLD);
+=======
+     if (mode.compare("coast") == 0)
+    {
+        FR.set_brake_mode(E_MOTOR_BRAKE_COAST);
+        FL.set_brake_mode(E_MOTOR_BRAKE_COAST);
+        BL.set_brake_mode(E_MOTOR_BRAKE_COAST);
+        BR.set_brake_mode(E_MOTOR_BRAKE_COAST);
+    }
+    else if (mode.compare("hold") == 0)
+    {
+>>>>>>> Stashed changes
         FL.set_brake_mode(E_MOTOR_BRAKE_HOLD);
         FR.set_brake_mode(E_MOTOR_BRAKE_HOLD);
         BL.set_brake_mode(E_MOTOR_BRAKE_HOLD);
         BR.set_brake_mode(E_MOTOR_BRAKE_HOLD);
+<<<<<<< Updated upstream
 	}
 	else FL = FR = BL = BR = 0;
+=======
+    }
+    else FL = FR = BL = BR = 0;
+>>>>>>> Stashed changes
 }
 void Robot::move_to(std::vector<double> pose) 
 {
