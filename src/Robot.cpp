@@ -3,7 +3,6 @@
 #include "system/json.hpp"
 #include "system/Serial.h"
 #include "PD.h"
-// #include "PD.cpp"
 #include <map>
 #include <cmath>
 #include <atomic>
@@ -18,7 +17,6 @@ using namespace std;
 std::map<std::string, std::unique_ptr<pros::Task>> Robot::tasks;
 
 Controller Robot::master(E_CONTROLLER_MASTER);
-<<<<<<< Updated upstream
 // Motor Robot::FLT(2, true); //front left top
 // Motor Robot::FLB(1); //front left bottom
 // Motor Robot::FRT(9); //front right top
@@ -28,20 +26,14 @@ Controller Robot::master(E_CONTROLLER_MASTER);
 // Motor Robot::BLT(11); //back left top
 // Motor Robot::BLB(12, true); //back left bottom
 // Motor Robot::roller(18); //mechanism for ascending rings
-=======
+// Motor Robot::angler(17);
+// Motor Robot::conveyor(18);
 
->>>>>>> Stashed changes
 Motor Robot::FR(17, true);
 Motor Robot::FL(8);
 Motor Robot::BR(3, true);
 Motor Robot::BL(10);
 
-<<<<<<< Updated upstream
-
-=======
-Motor Robot::angler(17);
-Motor Robot::conveyor(18);
->>>>>>> Stashed changes
 
 Imu Robot::IMU(15);
 ADIEncoder Robot::LE(5, 6);
@@ -56,57 +48,37 @@ std::atomic<double> Robot::x = 0;
 std::atomic<double> Robot::turn_offset_x = 0;
 std::atomic<double> Robot::turn_offset_y = 0;
 
+double pi = 3.141592653589793238;
 double Robot::offset_back = 2.875;
 double Robot::offset_middle = 5.0;
-double Robot::wheel_circumference = 2.75 * 3.1415926;
-double pi = 3.141592653589793238;
-
-int counter_global = 0;
-
-<<<<<<< Updated upstream
-void Robot::print(nlohmann::json msg) {
-	x = (float)x + 1;
-    string msgS = msg.dump();
-	//lcd::print(1, "Received %s %f", msg.dump(), (float)x);
-	std::size_t found = msgS.find(",");
-	double angle = std::stod(msgS.substr(1,found-1));
-	double depth = std::stod(msgS.substr(found+1,msgS.size()-found-1));
-	//lcd::print(5, "Degree %s", msgS.substr(1,found-1), (float)x);
-	//lcd::print(6, "Depth %s", msgS.substr(found+1,msgS.size()-found-2), (float)x);
-	double mogo_x = x + depth*(sin(angle * pi / 180));
-	double mogo_y = y + depth*(cos(angle * pi / 180));
-	//lcd::print(5, "depth %s", to_string(depth));
-	//lcd::print(6, "angle %s", to_string(angle));
-	//lcd::print(5, "Mogo_x %s", to_string(mogo_x), (float)x);
-	//lcd::print(6, "Mogo_y %s", to_string(mogo_y), (float)x);
-    std::vector<double> pos = {mogo_x, mogo_y+10, 0};
-    lcd::print(5, "DONE %d", mogo_x);
-    lcd::print(6, "DONE %d", mogo_y);
-    move_to(pos);
-	//mec_wrapper(0, 0, turn/10);
-=======
-bool fff = true;
+double Robot::wheel_circumference = 2.75 * pi;
+double inches_to_encoder = 41.669;
+double meters_to_inches = 39.3701;
+int move_offset = 15
+    
 void Robot::receive(nlohmann::json msg) {
-    if(fff){
-        string msgS = msg.dump();
-        std::size_t found = msgS.find(",");
+    string msgS = msg.dump();
+    std::size_t found = msgS.find(",");
 
-        double lidar_depth = std::stod(msgS.substr(1, found - 1));
-        double angle = std::stod(msgS.substr(found + 1, msgS.size() - found - 1));
-        double phi = IMU.get_rotation() * pi / 180; //should this be IMU.get_rotation() or heading?
+    double lidar_depth = std::stod(msgS.substr(1, found - 1));
+    double angle = std::stod(msgS.substr(found + 1, msgS.size() - found - 1));
+    double phi = IMU.get_rotation() * pi / 180;
 
-        heading = (IMU.get_rotation() - angle);
-        lcd::print(4, "Dept1h: %d", (lidar_depth * meters_to_inches));
-        lidar_depth = (lidar_depth * meters_to_inches - 12)*inches_to_encoder;
-        new_y = y + lidar_depth * cos((angle / 180) * pi);
-        new_x = x + lidar_depth * sin((angle / 180) * pi);
-        fff = false;
-        lcd::print(5, "Depth: %d", lidar_depth);
-        lcd::print(6, "Angle: %d", angle);
-    }
-    lcd::print(5, "%s", msg.dump());    
-    // fff++;
->>>>>>> Stashed changes
+    heading = (IMU.get_rotation() - angle);
+    lidar_depth = (lidar_depth * meters_to_inches - move_offset) * inches_to_encoder;
+    new_y = y + lidar_depth * cos(angle / 180 * pi);
+    new_x = x + lidar_depth * sin(angle / 180 * pi);
+
+    lcd::print(5, "Depth: %d", lidar_depth);
+    lcd::print(6, "Angle: %d", angle);
+    
+        /* 
+        * When within a certain distance of mogo, switch from lidar to other sensor
+        * Var storing where depth is reading in from
+        * Assert distance >12
+        * update new_x and new_y for every new frame (i.e. constantly update angle+depth to ensure more accuracy)
+        * threshold for turning angle
+        */
 }
 
 void Robot::reset_PD() {
@@ -116,26 +88,26 @@ void Robot::reset_PD() {
 }
 
 void Robot::drive(void *ptr) {
-	while (true) {
-        int power = master.get_analog(ANALOG_LEFT_Y);
-        int strafe = master.get_analog(ANALOG_LEFT_X);
-        int turn = master.get_analog(ANALOG_RIGHT_X);
-		bool pressed = master.get_digital(DIGITAL_R1);
-		bool pressed2 = master.get_digital(DIGITAL_R2);
-		/*
-		if (pressed){
-			roller=100;
-		}
-		else if(pressed2){
-			roller = -100;
-		}
-		else{
-			roller = 0;
-		}
-		*/
-        mecanum(power, strafe, turn);
+    while (true) {
+    int power = master.get_analog(ANALOG_LEFT_Y);
+    int strafe = master.get_analog(ANALOG_LEFT_X);
+    int turn = master.get_analog(ANALOG_RIGHT_X);
+        bool pressed = master.get_digital(DIGITAL_R1);
+        bool pressed2 = master.get_digital(DIGITAL_R2);
+        /*
+        if (pressed){
+            roller=100;
+        }
+        else if(pressed2){
+            roller = -100;
+        }
+        else{
+            roller = 0;
+        }
+        */
+        mecanum(power, strafe, turn, 127);
         delay(5);
-	}
+    }
 }
 
 // void Robot::mecanum(int power, int strafe, int turn) {
@@ -153,9 +125,8 @@ void Robot::drive(void *ptr) {
 // 	double true_max = double(std::max(max, min));
 // 	double scalar = (true_max > 127) ? 127 / true_max : 1;
 	
-// 	FLT = 0*(power + strafe + turn) * scalar;
-// 	FLB = 0*(power + strafe + turn) * scalar;
-
+// 	FLT = (power + strafe + turn) * scalar;
+// 	FLB = (power + strafe + turn) * scalar;
 // 	FRT = (power - strafe - turn) * scalar;
 // 	FRB = (power - strafe - turn) * scalar;
 // 	BLT = (power - strafe + turn) * scalar;
@@ -163,29 +134,27 @@ void Robot::drive(void *ptr) {
 // 	BRT = (power + strafe - turn) * scalar;
 // 	BRB = (power + strafe - turn) * scalar;
 // }
-void Robot::mecanum(int power, int strafe, int turn) {
 
-<<<<<<< Updated upstream
-	int powers[] {
-		power + strafe + turn,
-		power - strafe - turn,
-		power - strafe + turn, 
-		power + strafe - turn
-	};
+void Robot::mecanum(int power, int strafe, int turn, int max_power) {
+    // max_power = 127
+    int powers[] {
+        power + strafe + turn,
+        power - strafe - turn,
+        power - strafe + turn, 
+        power + strafe - turn
+    };
 
-	int max = *max_element(powers, powers + 4);
-	int min = abs(*min_element(powers, powers + 4));
+    int max = *max_element(powers, powers + 4);
+    int min = abs(*min_element(powers, powers + 4));
 
-	double true_max = double(std::max(max, min));
-	double scalar = (true_max > 127) ? 127 / true_max : 1;
-	scalar = 1;
+    double true_max = double(std::max(max, min));
+    double scalar = (true_max > max_power) ? max_power / true_max : 1;
 	
 
-	FL = (power + strafe + turn) * scalar;
-	FR = (power - strafe - turn) * scalar;
-	BL = (power - strafe + turn) * scalar;
-	BR = (power + strafe - turn) * scalar;
-=======
+    FL = (power + strafe + turn) * scalar;
+    FR = (power - strafe - turn) * scalar;
+    BL = (power - strafe + turn) * scalar;
+    BR = (power + strafe - turn) * scalar;
     int powers[] {
         power + strafe + turn,
         power - strafe - turn,
@@ -203,14 +172,13 @@ void Robot::mecanum(int power, int strafe, int turn) {
     FR = (power - strafe - turn) * scalar;
     BL = (power - strafe + turn) * scalar;
     BR = (power + strafe - turn) * scalar;
->>>>>>> Stashed changes
 }
 
 
 void Robot::start_task(std::string name, void (*func)(void *)) {
-	if (!task_exists(name)) {
-		tasks.insert(std::pair<std::string, std::unique_ptr<pros::Task>>(name, std::move(std::make_unique<pros::Task>(func, &x, TASK_PRIORITY_DEFAULT, TASK_STACK_DEPTH_DEFAULT, ""))));
-	}
+    if (!task_exists(name)) {
+        tasks.insert(std::pair<std::string, std::unique_ptr<pros::Task>>(name, std::move(std::make_unique<pros::Task>(func, &x, TASK_PRIORITY_DEFAULT, TASK_STACK_DEPTH_DEFAULT, ""))));
+    }
 }
 
 bool Robot::task_exists(std::string name) {
@@ -218,9 +186,9 @@ bool Robot::task_exists(std::string name) {
 }
 
 void Robot::kill_task(std::string name) {
-	if (task_exists(name)) {
-		tasks.erase(name);
-	}
+    if (task_exists(name)) {
+        tasks.erase(name);
+    }
 }
 
 void Robot::fps(void *ptr) {
@@ -272,35 +240,33 @@ void Robot::fps(void *ptr) {
 }
 void Robot::brake(std::string mode)
 {
-<<<<<<< Updated upstream
 
-	if (mode.compare("coast") == 0)
-	{
-		//FLT.set_brake_mode(E_MOTOR_BRAKE_COAST);
-		//FLB.set_brake_mode(E_MOTOR_BRAKE_COAST);
-		//FRT.set_brake_mode(E_MOTOR_BRAKE_COAST);
+    if (mode.compare("coast") == 0)
+    {
+        //FLT.set_brake_mode(E_MOTOR_BRAKE_COAST);
+        //FLB.set_brake_mode(E_MOTOR_BRAKE_COAST);
+        //FRT.set_brake_mode(E_MOTOR_BRAKE_COAST);
         //FRB.set_brake_mode(E_MOTOR_BRAKE_COAST);
-		//BLT.set_brake_mode(E_MOTOR_BRAKE_COAST);
+        //BLT.set_brake_mode(E_MOTOR_BRAKE_COAST);
         //BLB.set_brake_mode(E_MOTOR_BRAKE_COAST);
-		//BRT.set_brake_mode(E_MOTOR_BRAKE_COAST);
+        //BRT.set_brake_mode(E_MOTOR_BRAKE_COAST);
         //BRB.set_brake_mode(E_MOTOR_BRAKE_COAST);
-		FR.set_brake_mode(E_MOTOR_BRAKE_COAST);
-		FL.set_brake_mode(E_MOTOR_BRAKE_COAST);
-		BL.set_brake_mode(E_MOTOR_BRAKE_COAST);
-		BR.set_brake_mode(E_MOTOR_BRAKE_COAST);
-	}
-	else if (mode.compare("hold") == 0)
-	{
-		// FLT.set_brake_mode(E_MOTOR_BRAKE_HOLD);
+        FR.set_brake_mode(E_MOTOR_BRAKE_COAST);
+        FL.set_brake_mode(E_MOTOR_BRAKE_COAST);
+        BL.set_brake_mode(E_MOTOR_BRAKE_COAST);
+        BR.set_brake_mode(E_MOTOR_BRAKE_COAST);
+    }
+    else if (mode.compare("hold") == 0)
+    {
+        // FLT.set_brake_mode(E_MOTOR_BRAKE_HOLD);
         // FLB.set_brake_mode(E_MOTOR_BRAKE_HOLD);
-		// FRT.set_brake_mode(E_MOTOR_BRAKE_HOLD);
+        // FRT.set_brake_mode(E_MOTOR_BRAKE_HOLD);
         // FRB.set_brake_mode(E_MOTOR_BRAKE_HOLD);
-		// BLT.set_brake_mode(E_MOTOR_BRAKE_HOLD);
+        // BLT.set_brake_mode(E_MOTOR_BRAKE_HOLD);
         // BLB.set_brake_mode(E_MOTOR_BRAKE_HOLD);
-		// BRT.set_brake_mode(E_MOTOR_BRAKE_HOLD);
+        // BRT.set_brake_mode(E_MOTOR_BRAKE_HOLD);
         // BRB.set_brake_mode(E_MOTOR_BRAKE_HOLD);
-=======
-     if (mode.compare("coast") == 0)
+    if (mode.compare("coast") == 0)
     {
         FR.set_brake_mode(E_MOTOR_BRAKE_COAST);
         FL.set_brake_mode(E_MOTOR_BRAKE_COAST);
@@ -309,18 +275,14 @@ void Robot::brake(std::string mode)
     }
     else if (mode.compare("hold") == 0)
     {
->>>>>>> Stashed changes
         FL.set_brake_mode(E_MOTOR_BRAKE_HOLD);
         FR.set_brake_mode(E_MOTOR_BRAKE_HOLD);
         BL.set_brake_mode(E_MOTOR_BRAKE_HOLD);
         BR.set_brake_mode(E_MOTOR_BRAKE_HOLD);
-<<<<<<< Updated upstream
 	}
 	else FL = FR = BL = BR = 0;
-=======
     }
     else FL = FR = BL = BR = 0;
->>>>>>> Stashed changes
 }
 void Robot::move_to(std::vector<double> pose) 
 {
@@ -362,7 +324,7 @@ void Robot::move_to(std::vector<double> pose)
         double power = power_PD.get_value(y_error * std::cos(phi) + x_error * std::sin(phi));
         double strafe = strafe_PD.get_value(x_error * std::cos(phi) - y_error * std::sin(phi));
         double turn = turn_PD.get_value(imu_error);
-        mecanum(power, strafe, turn);
+        mecanum(power, strafe, turn, 127);
         /* Using our PD objects we use the error on each of our degrees of freedom (axial, lateral, and turning movement)
         to obtain speeds to input into Robot::mecanum. We perform a rotation matrix calculation to translate our y and x
         error to the same coordinate plane as Robot::y and Robot::x to ensure that the errors we are using are indeed
@@ -377,8 +339,6 @@ void Robot::move_to(std::vector<double> pose)
         time += 5;
     }
     reset_PD();
-    lcd::print(6, "DONE %d", counter_global);
-    counter_global ++;
     brake("stop");
 }
 
