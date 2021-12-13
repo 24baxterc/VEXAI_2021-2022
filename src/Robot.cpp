@@ -47,6 +47,9 @@ std::atomic<double> Robot::y = 0;
 std::atomic<double> Robot::x = 0;
 std::atomic<double> Robot::turn_offset_x = 0;
 std::atomic<double> Robot::turn_offset_y = 0;
+std::atomic<double> Robot::new_x = 0;
+std::atomic<double> Robot::new_y = 0;
+std::atomic<double> Robot::heading = 0;
 
 double pi = 3.141592653589793238;
 double Robot::offset_back = 2.875;
@@ -54,7 +57,7 @@ double Robot::offset_middle = 5.0;
 double Robot::wheel_circumference = 2.75 * pi;
 double inches_to_encoder = 41.669;
 double meters_to_inches = 39.3701;
-int move_offset = 15
+int move_offset = 15;
     
 void Robot::receive(nlohmann::json msg) {
     string msgS = msg.dump();
@@ -151,23 +154,6 @@ void Robot::mecanum(int power, int strafe, int turn, int max_power) {
     double scalar = (true_max > max_power) ? max_power / true_max : 1;
 	
 
-    FL = (power + strafe + turn) * scalar;
-    FR = (power - strafe - turn) * scalar;
-    BL = (power - strafe + turn) * scalar;
-    BR = (power + strafe - turn) * scalar;
-    int powers[] {
-        power + strafe + turn,
-        power - strafe - turn,
-        power - strafe + turn, 
-        power + strafe - turn
-    };
-
-    int max = *max_element(powers, powers + 4); // Finds highest power
-    int min = abs(*min_element(powers, powers + 4)); // Finds lowest power
-
-    double true_max = double(std::max(max, min)); // Finds highest magnitude of power
-    double scalar = (true_max > 127) ? 127 / true_max : 1; // Scales all motor powers down if there is a motor power higher than the max power
-    
     FL = (power + strafe + turn) * scalar;
     FR = (power - strafe - turn) * scalar;
     BL = (power - strafe + turn) * scalar;
@@ -284,12 +270,8 @@ void Robot::brake(std::string mode)
     }
     else FL = FR = BL = BR = 0;
 }
-void Robot::move_to(std::vector<double> pose) 
+void Robot::move_to(void *ptr) 
 {
-    double new_y = pose[0];
-    double new_x = pose[1];
-    double heading = pose[2];
-
 
     std::deque<double> motion;
 

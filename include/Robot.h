@@ -9,22 +9,11 @@
 #include "PD.h"
 #include <atomic>
 using namespace pros;
+using namespace std;
 
-class Robot{
+class Robot {
 	public:
 		static Controller master;
-<<<<<<< Updated upstream
-		static Motor FLT;
-		static Motor FRT;
-		static Motor BLT;
-		static Motor BRT;
-		static Motor FLB;
-		static Motor FRB;
-		static Motor BLB;
-		static Motor BRB;
-=======
-		
->>>>>>> Stashed changes
 		static Motor FR;
 		static Motor FL;
 		static Motor BR;
@@ -43,6 +32,9 @@ class Robot{
 		static std::atomic<double> y;
 		static std::atomic<double> turn_offset_x;
 		static std::atomic<double> turn_offset_y;
+		static std::atomic<double> new_x;
+		static std::atomic<double> new_y;
+		static std::atomic<double> heading;
 
 		static double offset_back;
 		static double offset_middle;
@@ -51,21 +43,17 @@ class Robot{
 		static std::map<std::string, std::unique_ptr<pros::Task>> tasks;
 
 		static void reset_PD();
-		static void mecanum(int power, int strafe, int turn);
+		static void mecanum(int power, int strafe, int turn, int max_power);
 		static void drive(void *ptr);
-<<<<<<< Updated upstream
-		static void print(nlohmann::json msg);
-=======
 		static void receive(nlohmann::json msg);
->>>>>>> Stashed changes
+		static void print(nlohmann::json msg);
 
 		static void start_task(std::string name, void (*func)(void *));
 		static bool task_exists(std::string name);
 		static void kill_task(std::string name);
 
-		static void mecanumT(int power, int strafe, int turn);
 		static void brake(std::string mode);
 		static void fps(void *ptr);
-		static void move_to(std::vector<double> pose);
+		static void move_to(void *ptr);
 };
 #endif

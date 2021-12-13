@@ -1,3 +1,6 @@
+#ifndef _Robot
+#define _Robot
+
 namespace Constants {
   constexpr double axialToCenterDist = 2.875; //distance between axial dead wheels and center, will need 2x for the full width
   constexpr double lateralToCenterDist = 5.0; // distance from lateral dead wheels and center
@@ -7,3 +10,4 @@ namespace Constants {
 
   //if something is 0, then we don't know the value yet
 }
+#endif
