@@ -43,6 +43,9 @@ PD Robot::power_PD(.32, 5, 0);
 PD Robot::strafe_PD(.17, .3, 0);
 PD Robot::turn_PD(1.2, 1, 0);
 
+// These should be re-labeled and converted to arrays: 
+// std::atomic<std::array<int,2>> robot_pos;
+// std::atomic<std::array<int,3>> mogo_pos;
 std::atomic<double> Robot::y = 0;
 std::atomic<double> Robot::x = 0;
 std::atomic<double> Robot::turn_offset_x = 0;
@@ -51,13 +54,16 @@ std::atomic<double> Robot::new_x = 0;
 std::atomic<double> Robot::new_y = 0;
 std::atomic<double> Robot::heading = 0;
 
-double pi = 3.141592653589793238;
-double Robot::offset_back = 2.875;
-double Robot::offset_middle = 5.0;
-double Robot::wheel_circumference = 2.75 * pi;
-double inches_to_encoder = 41.669;
-double meters_to_inches = 39.3701;
-int move_offset = 15;
+final double Robot::offset_back = 2.875;
+final double Robot::offset_middle = 5.0;
+final double Robot::wheel_circumference = 2.75 * pi;
+
+// Values that should go in constants.h
+final double pi = 3.141592653589793238;
+final double inches_to_encoder = 41.669;
+final double meters_to_inches = 39.3701;
+
+int move_offset = 15; // Should not go in constants.h
     
 void Robot::receive(nlohmann::json msg) {
     string msgS = msg.dump();
@@ -82,6 +88,17 @@ void Robot::receive(nlohmann::json msg) {
         * update new_x and new_y for every new frame (i.e. constantly update angle+depth to ensure more accuracy)
         * threshold for turning angle
         */
+	
+	/* 
+	* Code Structure Planning:
+	* We need more communication between the recieve funcion and the move_to function. 
+	* Either we should make an object that controls the move_to or the recieve
+	* Or we should create an intermediary function that takes the data that recieve outputs (the position and angle of the mogo)
+	* And edits it so that we don't use the position from the lidar if we are really close, ect.
+	* 
+	* Recieve() shouldn't directly output data into move_to, we should have recieve() deal with the data formatting we have rn.
+	* Another function will take data from odom, recieve and the untrasonic and output the final values that move_to will use.
+	*/
 }
 
 void Robot::reset_PD() {
