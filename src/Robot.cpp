@@ -44,8 +44,9 @@ PD Robot::strafe_PD(.17, .3, 0);
 PD Robot::turn_PD(1.2, 1, 0);
 
 // These should be re-labeled and converted to arrays: 
-// std::atomic<std::array<int,2>> robot_pos;
-// std::atomic<std::array<int,3>> mogo_pos;
+// std::array<std::atomic<int>,2> robot_pos;
+// std::array<std::atomic<int>,3> mogo_pos;
+
 std::atomic<double> Robot::y = 0;
 std::atomic<double> Robot::x = 0;
 std::atomic<double> Robot::turn_offset_x = 0;
@@ -54,14 +55,14 @@ std::atomic<double> Robot::new_x = 0;
 std::atomic<double> Robot::new_y = 0;
 std::atomic<double> Robot::heading = 0;
 
-final double Robot::offset_back = 2.875;
-final double Robot::offset_middle = 5.0;
-final double Robot::wheel_circumference = 2.75 * pi;
+const double Robot::offset_back = 2.875;
+const double Robot::offset_middle = 5.0;
+const double Robot::wheel_circumference = 2.75 * pi;
 
 // Values that should go in constants.h
-final double pi = 3.141592653589793238;
-final double inches_to_encoder = 41.669;
-final double meters_to_inches = 39.3701;
+const double pi = 3.141592653589793238;
+const double inches_to_encoder = 41.669;
+const double meters_to_inches = 39.3701;
 
 int move_offset = 15; // Should not go in constants.h
     
